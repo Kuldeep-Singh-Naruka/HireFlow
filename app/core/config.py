@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     # Required: Neon (or any PostgreSQL) connection string.
     # Example: postgresql+psycopg2://user:pass@host/dbname?sslmode=require
     DATABASE_URL: str
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "qwen/qwen3.8-27b"
 
     model_config = SettingsConfigDict(
         env_file=".env",
