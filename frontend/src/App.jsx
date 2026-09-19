@@ -5,6 +5,7 @@ import CandidateHub from './components/CandidateHub';
 import ScreeningMatrix from './components/ScreeningMatrix';
 import InterviewIntelligence from './components/InterviewIntelligence';
 import { api } from './services/api';
+import { CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('jobs');
@@ -20,6 +21,14 @@ export default function App() {
   const [isExtractingProfile, setIsExtractingProfile] = useState(false);
   const [isScreening, setIsScreening] = useState(false);
   const [isGeneratingKit, setIsGeneratingKit] = useState(false);
+
+  // Toast Notification state
+  const [toastMessage, setToastMessage] = useState(null);
+
+  const showToast = (msg, type = 'success') => {
+    setToastMessage({ text: msg, type });
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   // Initial Data Loading
   useEffect(() => {
@@ -72,6 +81,7 @@ export default function App() {
     setJobs((prev) => [newJob, ...prev]);
     setSelectedJob(newJob);
     setActiveTab('jobs');
+    showToast(`Created Job Opening: "${title}"`);
   };
 
   // Extract Requirements
@@ -81,8 +91,10 @@ export default function App() {
       const updatedJob = await api.extractJobRequirements(jobId);
       setSelectedJob(updatedJob);
       setJobs((prev) => prev.map((j) => (j.id === jobId ? updatedJob : j)));
+      showToast("Requirements extracted successfully!");
     } catch (err) {
       console.error('Failed to extract job requirements:', err);
+      showToast("Extraction error occurred", "error");
     } finally {
       setIsExtractingRequirements(false);
     }
@@ -97,8 +109,10 @@ export default function App() {
       setCandidates((prev) => [...prev, newCand]);
       setSelectedCandidate(newCand);
       setActiveTab('candidates');
+      showToast(`Uploaded resume: ${file.name}`);
     } catch (err) {
       console.error('Failed to upload candidate resume:', err);
+      showToast("Upload failed", "error");
     } finally {
       setIsUploading(false);
     }
@@ -111,8 +125,10 @@ export default function App() {
       const updatedCand = await api.extractCandidateProfile(candidateId);
       setSelectedCandidate(updatedCand);
       setCandidates((prev) => prev.map((c) => (c.id === candidateId ? updatedCand : c)));
+      showToast("Candidate profile structured!");
     } catch (err) {
       console.error('Failed to extract candidate profile:', err);
+      showToast("Profile extraction failed", "error");
     } finally {
       setIsExtractingProfile(false);
     }
@@ -125,9 +141,11 @@ export default function App() {
       const updatedCand = await api.screenCandidate(candidateId);
       setSelectedCandidate(updatedCand);
       setCandidates((prev) => prev.map((c) => (c.id === candidateId ? updatedCand : c)));
+      showToast(`Match score evaluated: ${updatedCand?.screening_json?.overall_match_score}%`);
       return updatedCand;
     } catch (err) {
       console.error('Failed to screen candidate:', err);
+      showToast("Screening evaluation failed", "error");
     } finally {
       setIsScreening(false);
     }
@@ -140,14 +158,16 @@ export default function App() {
       const updatedCand = await api.generateInterviewKit(candidateId);
       setSelectedCandidate(updatedCand);
       setCandidates((prev) => prev.map((c) => (c.id === candidateId ? updatedCand : c)));
+      showToast("Interview Question Kit generated!");
     } catch (err) {
       console.error('Failed to generate interview kit:', err);
+      showToast("Interview kit generation failed", "error");
     } finally {
       setIsGeneratingKit(false);
     }
   };
 
-  // Inject Mock Candidate Preset for Fast Demo
+  // Inject Mock Candidate Preset
   const handleInjectMockCandidate = (mockPreset) => {
     if (!selectedJob) return;
     const newCand = {
@@ -158,16 +178,31 @@ export default function App() {
     };
     setCandidates((prev) => [newCand, ...prev]);
     setSelectedCandidate(newCand);
+    showToast(`Added candidate: ${newCand.filename}`);
   };
 
   // Compute stats
-  const topMatches = candidates.filter(c => c.screening_json?.overall_match_score >= 80).length;
+  const topMatches = candidates.filter(c => (c.screening_json?.overall_match_score || 0) >= 80).length;
   const scores = candidates.map(c => c.screening_json?.overall_match_score).filter(Boolean);
   const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 84;
 
   return (
     <div className="min-h-screen bg-radial-ambient text-slate-100 flex flex-col selection:bg-blue-600 selection:text-white pb-12">
-      {/* Navigation Header */}
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 font-sans">
+          <div className={`px-4 py-2.5 rounded-lg shadow-xl flex items-center gap-2 text-xs font-medium border ${
+            toastMessage.type === 'error'
+              ? 'bg-rose-950/90 text-rose-200 border-rose-800'
+              : 'bg-[#151B2A] text-slate-100 border-blue-500/40'
+          }`}>
+            {toastMessage.type === 'error' ? <AlertCircle className="w-4 h-4 text-rose-400" /> : <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+            {toastMessage.text}
+          </div>
+        </div>
+      )}
+
+      {/* Clean Header */}
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -179,7 +214,7 @@ export default function App() {
         }}
       />
 
-      {/* Main Content Workspace */}
+      {/* Main Workspace */}
       <main className="max-w-7xl mx-auto w-full px-6 mt-8 flex-1">
         {activeTab === 'jobs' && (
           <JobManager
@@ -213,6 +248,11 @@ export default function App() {
           <ScreeningMatrix
             selectedCandidate={selectedCandidate}
             selectedJob={selectedJob}
+            candidates={candidates}
+            onSelectCandidate={async (c) => {
+              const fullDetail = await api.getCandidateDetail(c.id);
+              setSelectedCandidate(fullDetail);
+            }}
             onScreenCandidate={handleScreenCandidate}
             isScreening={isScreening}
           />
@@ -222,6 +262,11 @@ export default function App() {
           <InterviewIntelligence
             selectedCandidate={selectedCandidate}
             selectedJob={selectedJob}
+            candidates={candidates}
+            onSelectCandidate={async (c) => {
+              const fullDetail = await api.getCandidateDetail(c.id);
+              setSelectedCandidate(fullDetail);
+            }}
             onGenerateInterviewKit={handleGenerateInterviewKit}
             isGeneratingKit={isGeneratingKit}
           />
