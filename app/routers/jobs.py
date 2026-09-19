@@ -17,6 +17,49 @@ router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
 
 # ---------------------------------------------------------------------------
+# GET /jobs — list all job postings
+# ---------------------------------------------------------------------------
+
+@router.get(
+    "",
+    response_model=list[JobDetailResponse],
+    summary="List all job postings",
+)
+def list_jobs(db: Session = Depends(get_db)) -> list[JobDetailResponse]:
+    """Return all job postings with candidate summaries."""
+    jobs = db.query(Job).order_by(Job.created_at.desc()).all()
+    results = []
+    for job in jobs:
+        candidates = (
+            db.query(Candidate)
+            .filter(Candidate.job_id == job.id)
+            .order_by(Candidate.created_at)
+            .all()
+        )
+        results.append(
+            JobDetailResponse(
+                id=job.id,
+                title=job.title,
+                description_text=job.description_text,
+                requirements_json=job.requirements_json,
+                requirements_status=job.requirements_status,
+                requirements_error=job.requirements_error,
+                created_at=job.created_at,
+                candidates=[
+                    {
+                        "id": c.id,
+                        "filename": c.filename,
+                        "extraction_status": c.extraction_status,
+                        "created_at": c.created_at,
+                    }
+                    for c in candidates
+                ],
+            )
+        )
+    return results
+
+
+# ---------------------------------------------------------------------------
 # POST /jobs — create a job posting
 # ---------------------------------------------------------------------------
 

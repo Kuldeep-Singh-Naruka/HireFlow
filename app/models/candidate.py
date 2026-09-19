@@ -53,6 +53,14 @@ class Candidate(Base):
     )
     profile_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    screening_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    screening_status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="not_screened"
+    )
+    screening_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    interview_kit_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

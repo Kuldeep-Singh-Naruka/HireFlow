@@ -16,6 +16,7 @@ from app.models.job import Job
 from app.schemas.candidate_schema import CandidateDetailResponse, CandidateUploadResponse
 from app.services.extraction import extract_text
 from app.services.llm import extract_candidate_profile
+from app.services.screening import generate_interview_kit, screen_candidate
 
 router = APIRouter(tags=["Candidates"])
 
@@ -171,14 +172,104 @@ async def upload_candidate(
     summary="Get full candidate record including extracted text",
 )
 def get_candidate(candidate_id: int, db: Session = Depends(get_db)) -> Candidate:
-    """Return the full Candidate record, including raw_text.
-
-    This is the only endpoint that exposes raw extracted text — all list
-    views deliberately omit it to keep payloads small.
-    """
+    """Return the full Candidate record, including raw_text."""
     candidate = db.get(Candidate, candidate_id)
     if candidate is None:
         raise HTTPException(
             status_code=404, detail=f"Candidate {candidate_id} not found"
         )
+    return candidate
+
+
+# ---------------------------------------------------------------------------
+# POST /candidates/{candidate_id}/match — AI Candidate Match Screening
+# ---------------------------------------------------------------------------
+
+@router.post(
+    "/candidates/{candidate_id}/match",
+    response_model=CandidateDetailResponse,
+    summary="Screen candidate profile against job requirements using AI",
+)
+def screen_candidate_endpoint(
+    candidate_id: int, db: Session = Depends(get_db)
+) -> Candidate:
+    """Perform AI candidate screening & match scoring against job requirements."""
+    candidate = db.get(Candidate, candidate_id)
+    if candidate is None:
+        raise HTTPException(status_code=404, detail=f"Candidate {candidate_id} not found")
+
+    job = db.get(Job, candidate.job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Associated job {candidate.job_id} not found")
+
+    if not candidate.profile_json:
+        # Auto-extract profile if profile_json is not present yet
+        if candidate.extraction_status == EXTRACTION_STATUS_OK and candidate.raw_text:
+            try:
+                extraction_result = extract_candidate_profile(candidate.raw_text)
+                candidate.profile_json = extraction_result.model_dump()
+                candidate.profile_status = PROFILE_STATUS_OK
+            except Exception as exc:
+                candidate.profile_status = PROFILE_STATUS_ERROR
+                candidate.profile_error = str(exc)
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="Candidate profile not extracted yet and candidate has no usable text layer.",
+            )
+
+    req_json = job.requirements_json or {"requirements": []}
+    prof_json = candidate.profile_json or {}
+
+    try:
+        screening_res = screen_candidate(job.title, req_json, prof_json)
+        candidate.screening_json = screening_res.model_dump()
+        candidate.screening_status = "ok"
+        candidate.screening_error = None
+    except Exception as exc:
+        candidate.screening_status = "error"
+        candidate.screening_error = str(exc)
+
+    db.add(candidate)
+    db.commit()
+    db.refresh(candidate)
+    return candidate
+
+
+# ---------------------------------------------------------------------------
+# POST /candidates/{candidate_id}/interview-kit — Generate Interview Kit
+# ---------------------------------------------------------------------------
+
+@router.post(
+    "/candidates/{candidate_id}/interview-kit",
+    response_model=CandidateDetailResponse,
+    summary="Generate tailored interview intelligence question kit for candidate",
+)
+def generate_interview_kit_endpoint(
+    candidate_id: int, db: Session = Depends(get_db)
+) -> Candidate:
+    """Generate structured interview questions (technical, behavioral, skill gap probes)."""
+    candidate = db.get(Candidate, candidate_id)
+    if candidate is None:
+        raise HTTPException(status_code=404, detail=f"Candidate {candidate_id} not found")
+
+    job = db.get(Job, candidate.job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Associated job {candidate.job_id} not found")
+
+    req_json = job.requirements_json or {"requirements": []}
+    prof_json = candidate.profile_json or {}
+    screening_summary = ""
+    if candidate.screening_json:
+        screening_summary = candidate.screening_json.get("summary_reasoning", "")
+
+    try:
+        kit_res = generate_interview_kit(job.title, req_json, prof_json, screening_summary)
+        candidate.interview_kit_json = kit_res.model_dump()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to generate interview kit: {exc}")
+
+    db.add(candidate)
+    db.commit()
+    db.refresh(candidate)
     return candidate

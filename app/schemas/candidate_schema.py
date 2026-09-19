@@ -28,7 +28,7 @@ class CandidateUploadResponse(BaseModel):
 
 
 class CandidateDetailResponse(BaseModel):
-    """Full candidate record including raw_text — only from GET /candidates/{id}."""
+    """Full candidate record including raw_text, profile, screening, and interview kit."""
 
     id: int
     job_id: int
@@ -39,6 +39,10 @@ class CandidateDetailResponse(BaseModel):
     profile_json: Optional[dict] = None
     profile_status: str
     profile_error: Optional[str] = None
+    screening_json: Optional[dict] = None
+    screening_status: str = "not_screened"
+    screening_error: Optional[str] = None
+    interview_kit_json: Optional[dict] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

@@ -33,6 +33,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Nothing to tear down — connection pool is managed by SQLAlchemy.
 
 
+from fastapi.middleware.cors import CORSMiddleware
+
 # ---------------------------------------------------------------------------
 # App factory
 # ---------------------------------------------------------------------------
@@ -40,11 +42,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(
     title="HireFlow API",
     description=(
-        "Milestone 1 — job posting creation and resume ingestion (PDF / DOCX). "
-        "No auth, no LLM, no background workers."
+        "AI Candidate Screening & Interview Intelligence Agent API."
     ),
-    version="0.1.0",
+    version="0.2.0",
     lifespan=lifespan,
+)
+
+# Enable CORS for frontend integration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ---------------------------------------------------------------------------
