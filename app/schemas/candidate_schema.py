@@ -36,6 +36,10 @@ class CandidateDetailResponse(BaseModel):
     raw_text: Optional[str] = None
     extraction_status: str
     extraction_error: Optional[str] = None
+    profile_json: Optional[dict] = None
+    profile_status: str
+    profile_error: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
