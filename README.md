@@ -1,6 +1,6 @@
 # HireFlow — AI-Powered Hiring Pipeline
 
-> **Hackathon project — solo, 24-48 hr build.**  
+> **Hackathon project.**  
 > Four milestones complete: resume ingestion → structured extraction → requirement mapping → interview question generation.
 
 ---
