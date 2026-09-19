@@ -39,6 +39,14 @@ class CandidateDetailResponse(BaseModel):
     profile_json: Optional[dict] = None
     profile_status: str
     profile_error: Optional[str] = None
+    # Milestone 3 — requirement mapping results
+    mapping_json: Optional[dict] = None
+    mapping_status: str = "not_mapped"
+    mapping_error: Optional[str] = None
+    # Milestone 4 — interview question generation
+    interview_questions_json: Optional[dict] = None
+    interview_questions_status: str = "not_generated"
+    interview_questions_error: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

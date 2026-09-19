@@ -20,6 +20,16 @@ PROFILE_STATUS_NOT_EXTRACTED = "not_extracted"
 PROFILE_STATUS_OK = "ok"
 PROFILE_STATUS_ERROR = "error"
 
+# Status constants for requirement mapping (Milestone 3)
+MAPPING_STATUS_NOT_MAPPED = "not_mapped"
+MAPPING_STATUS_OK = "ok"
+MAPPING_STATUS_ERROR = "error"
+
+# Status constants for interview question generation (Milestone 4)
+IQ_STATUS_NOT_GENERATED = "not_generated"
+IQ_STATUS_OK = "ok"
+IQ_STATUS_ERROR = "error"
+
 
 class Candidate(Base):
     """Represents a resume uploaded by (or on behalf of) a candidate.
@@ -52,6 +62,20 @@ class Candidate(Base):
         String(32), nullable=False, default=PROFILE_STATUS_NOT_EXTRACTED
     )
     profile_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Milestone 3 — requirement mapping
+    mapping_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    mapping_status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=MAPPING_STATUS_NOT_MAPPED
+    )
+    mapping_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Milestone 4 — interview question generation
+    interview_questions_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    interview_questions_status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=IQ_STATUS_NOT_GENERATED
+    )
+    interview_questions_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
