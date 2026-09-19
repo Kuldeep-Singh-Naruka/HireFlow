@@ -63,3 +63,13 @@ app.include_router(candidates.router)
 def health_check() -> dict[str, str]:
     """Returns 200 OK when the server is up."""
     return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# Dev entry-point — allows `python main.py` in addition to `uvicorn main:app`
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
