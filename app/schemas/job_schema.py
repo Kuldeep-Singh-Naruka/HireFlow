@@ -43,12 +43,18 @@ class CandidateSummary(BaseModel):
     model_config = {"from_attributes": True}
 
 
+from typing import Optional
+
+
 class JobResponse(BaseModel):
     """Full Job record returned after creation or GET."""
 
     id: int
     title: str
     description_text: str
+    requirements_json: Optional[dict] = None
+    requirements_status: str
+    requirements_error: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -58,3 +64,4 @@ class JobDetailResponse(JobResponse):
     """Job detail including a summary list of uploaded candidates."""
 
     candidates: list[CandidateSummary] = []
+

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import JSON, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -14,6 +14,11 @@ from app.database import Base
 EXTRACTION_STATUS_OK = "ok"
 EXTRACTION_STATUS_EMPTY = "empty"
 EXTRACTION_STATUS_ERROR = "error"
+
+# Status constants for profile extraction
+PROFILE_STATUS_NOT_EXTRACTED = "not_extracted"
+PROFILE_STATUS_OK = "ok"
+PROFILE_STATUS_ERROR = "error"
 
 
 class Candidate(Base):
@@ -41,6 +46,13 @@ class Candidate(Base):
         String(16), nullable=False, default=EXTRACTION_STATUS_OK
     )
     extraction_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    profile_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    profile_status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=PROFILE_STATUS_NOT_EXTRACTED
+    )
+    profile_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
