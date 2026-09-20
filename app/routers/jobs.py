@@ -51,6 +51,8 @@ def list_jobs(db: Session = Depends(get_db)) -> list[JobDetailResponse]:
                         "filename": c.filename,
                         "extraction_status": c.extraction_status,
                         "created_at": c.created_at,
+                        "mapping_json": c.mapping_json,
+                        "profile_json": c.profile_json,
                     }
                     for c in candidates
                 ],
@@ -123,6 +125,8 @@ def get_job(job_id: int, db: Session = Depends(get_db)) -> JobDetailResponse:
                 "filename": c.filename,
                 "extraction_status": c.extraction_status,
                 "created_at": c.created_at,
+                "mapping_json": c.mapping_json,
+                "profile_json": c.profile_json,
             }
             for c in candidates
         ],

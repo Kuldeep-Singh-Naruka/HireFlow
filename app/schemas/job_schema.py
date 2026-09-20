@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
+from typing import Optional
 
 
 # ---------------------------------------------------------------------------
@@ -39,11 +40,12 @@ class CandidateSummary(BaseModel):
     filename: str
     extraction_status: str
     created_at: datetime
+    mapping_json: Optional[dict] = None
+    profile_json: Optional[dict] = None
 
     model_config = {"from_attributes": True}
 
 
-from typing import Optional
 
 
 class JobResponse(BaseModel):
