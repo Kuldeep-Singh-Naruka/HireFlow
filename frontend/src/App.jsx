@@ -195,8 +195,20 @@ export default function App() {
   };
 
   // Compute stats
-  const topMatches = candidates.filter(c => (c.screening_json?.overall_match_score || 0) >= 80).length;
-  const scores = candidates.map(c => c.screening_json?.overall_match_score).filter(Boolean);
+  const getScore = (c) => {
+    if (c.screening_json?.overall_match_score) return c.screening_json.overall_match_score;
+    if (c.mapping_json?.mappings) {
+      const mappings = c.mapping_json.mappings;
+      const met = mappings.filter(m => m.status === 'met').length;
+      const partial = mappings.filter(m => m.status === 'partial').length;
+      const total = mappings.length || 1;
+      return Math.min(100, Math.max(15, Math.round(((met * 1.0 + partial * 0.5) / total) * 100)));
+    }
+    return 0;
+  };
+
+  const topMatches = candidates.filter(c => getScore(c) >= 80).length;
+  const scores = candidates.map(c => getScore(c)).filter(s => s > 0);
   const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
 
   return (

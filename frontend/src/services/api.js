@@ -201,25 +201,7 @@ export const api = {
       }
       if (res.ok) {
         const data = await res.json();
-        const mappings = data.mapping_json?.mappings || [];
-        const met = mappings.filter(m => m.status === 'met').length;
-        const partial = mappings.filter(m => m.status === 'partial').length;
-        const total = mappings.length || 1;
-        const computedScore = Math.min(100, Math.max(15, Math.round(((met * 1.0 + partial * 0.5) / total) * 100)));
-
-        data.screening_json = data.screening_json || {
-          overall_match_score: computedScore,
-          match_category: computedScore >= 75 ? "Strong Fit" : computedScore >= 50 ? "Moderate Fit" : "Low Fit",
-          recommendation: computedScore >= 75 ? "Shortlist for Interview" : computedScore >= 50 ? "Consider with Reservations" : "Reject",
-          summary_reasoning: `Evaluated ${total} role requirement criteria: ${met} met, ${partial} partial fit (${computedScore}% match score).`,
-          skill_breakdown: {
-            matched_skills: mappings.filter(m => m.status === 'met').map(m => m.requirement_text),
-            missing_required_skills: mappings.filter(m => m.status === 'gap').map(m => m.requirement_text),
-            bonus_skills: mappings.filter(m => m.status === 'partial').map(m => m.requirement_text)
-          },
-          key_strengths: mappings.filter(m => m.status === 'met').map(m => `Meets: ${m.requirement_text}`),
-          potential_risks: mappings.filter(m => m.status === 'gap').map(m => `Gap: ${m.requirement_text}`)
-        };
+        // Backend returns mapping_json natively now
         return data;
       }
     } catch (err) {
@@ -261,20 +243,7 @@ export const api = {
       }
       if (res.ok) {
         const data = await res.json();
-        const questionsList = data.interview_questions_json?.questions || [];
-        data.interview_kit_json = data.interview_kit_json || {
-          technical_questions: questionsList.map(q => ({
-            question: q.question_text || q.question,
-            target_skill: q.target_requirement || "Core Requirement",
-            difficulty: q.difficulty || "Medium",
-            expected_answer_points: q.expected_answer_points || [q.evaluation_guidance || "Technical depth"]
-          })),
-          behavioral_questions: [
-            { question: "Describe a project where you solved a key engineering bottleneck under tight deadlines.", competency: "Problem Solving", evaluation_criteria: "Analytical approach and ownership" }
-          ],
-          skill_gap_probes: [],
-          interviewer_cheat_sheet: ["Focus on candidate explanation clarity and problem solving."]
-        };
+        // Backend returns interview_questions_json natively now
         return data;
       }
     } catch (err) {
