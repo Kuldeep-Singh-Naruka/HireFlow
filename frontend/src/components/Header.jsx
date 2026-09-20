@@ -1,15 +1,14 @@
 import React from 'react';
 import { 
   Users, 
-  Briefcase, 
-  Sparkles,
-  Award
+  Briefcase
 } from 'lucide-react';
 
 export default function Header({ 
   activeTab, 
   setActiveTab, 
-  stats = { activeJobs: 1, candidatesScreened: 2, topMatches: 1, avgScore: 84 }
+  stats = { activeJobs: 0, candidatesScreened: 0, topMatches: 0, avgScore: 0 },
+  autoPipelineStatus
 }) {
   return (
     <header className="sticky top-0 z-40 bg-[#090A0F]/95 backdrop-blur-md border-b border-[#1E2638] px-6 py-3.5">
@@ -20,20 +19,28 @@ export default function Header({
             HF
           </div>
           <div>
-            <h1 className="text-lg font-bold tracking-tight text-white m-0 leading-none">
-              HireFlow
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-bold tracking-tight text-white m-0 leading-none">
+                HireFlow
+              </h1>
+              {autoPipelineStatus && (
+                <span className="flex items-center gap-1.5 text-[10px] font-mono text-blue-300 bg-blue-950/80 px-2 py-0.5 rounded border border-blue-800/80 animate-pulse">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                  {autoPipelineStatus}
+                </span>
+              )}
+            </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Candidate Screening & Interview Intelligence
+              Automated Candidate Screening & Interview Intelligence
             </p>
           </div>
         </div>
 
-        {/* Navigation Tabs */}
+        {/* Navigation Tabs (Simplified to 2 Core Views) */}
         <nav className="flex items-center gap-1 bg-[#111520] p-1 rounded-lg border border-[#1E2638]">
           <button
             onClick={() => setActiveTab('jobs')}
-            className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-2 ${
+            className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-2 ${
               activeTab === 'jobs' 
                 ? 'bg-blue-600 text-white font-semibold' 
                 : 'text-slate-400 hover:text-slate-200 hover:bg-[#151B2A]'
@@ -45,38 +52,14 @@ export default function Header({
 
           <button
             onClick={() => setActiveTab('candidates')}
-            className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-2 ${
+            className={`px-4 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-2 ${
               activeTab === 'candidates' 
                 ? 'bg-blue-600 text-white font-semibold' 
                 : 'text-slate-400 hover:text-slate-200 hover:bg-[#151B2A]'
             }`}
           >
             <Users className="w-3.5 h-3.5" />
-            Candidate Resumes
-          </button>
-
-          <button
-            onClick={() => setActiveTab('screening')}
-            className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-2 ${
-              activeTab === 'screening' 
-                ? 'bg-blue-600 text-white font-semibold' 
-                : 'text-slate-400 hover:text-slate-200 hover:bg-[#151B2A]'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            Match Scorecard
-          </button>
-
-          <button
-            onClick={() => setActiveTab('interview')}
-            className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-2 ${
-              activeTab === 'interview' 
-                ? 'bg-blue-600 text-white font-semibold' 
-                : 'text-slate-400 hover:text-slate-200 hover:bg-[#151B2A]'
-            }`}
-          >
-            <Award className="w-3.5 h-3.5" />
-            Interview Agent
+            Candidate Dashboard
           </button>
         </nav>
       </div>

@@ -78,7 +78,8 @@ def get_llm_client() -> ChatGroq:
         model_name=settings.GROQ_MODEL,
         groq_api_key=settings.GROQ_API_KEY,
         temperature=0.0,
-        max_tokens=1500,
+        max_tokens=1000,
+        max_retries=5,
     )
 
 

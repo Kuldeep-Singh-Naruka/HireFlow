@@ -206,8 +206,18 @@ export default function JobManager({
             </div>
           </div>
         ) : (
-          <div className="glass-panel rounded-xl p-12 text-center text-slate-400 text-xs">
-            Select a job opening from the sidebar to view details.
+          <div className="glass-panel rounded-xl p-12 text-center space-y-3 border border-[#1E2638]">
+            <Briefcase className="w-10 h-10 text-slate-600 mx-auto" />
+            <h3 className="text-base font-bold text-white">No Job Openings Created Yet</h3>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              Create your first job opening to define role requirements and start evaluating candidate resumes.
+            </p>
+            <button
+              onClick={() => setShowModal(true)}
+              className="btn-primary px-4 py-2 text-xs inline-flex items-center gap-1.5 mt-2"
+            >
+              <Plus className="w-4 h-4" /> Create Job Opening
+            </button>
           </div>
         )}
       </div>

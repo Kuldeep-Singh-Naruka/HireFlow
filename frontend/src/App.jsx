@@ -1,9 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Header from './components/Header';
 import JobManager from './components/JobManager';
 import CandidateHub from './components/CandidateHub';
-import ScreeningMatrix from './components/ScreeningMatrix';
-import InterviewIntelligence from './components/InterviewIntelligence';
 import { api } from './services/api';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 
@@ -17,10 +15,11 @@ export default function App() {
   const [selectedCandidate, setSelectedCandidate] = useState(null);
 
   const [isExtractingRequirements, setIsExtractingRequirements] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isExtractingProfile, setIsExtractingProfile] = useState(false);
-  const [isScreening, setIsScreening] = useState(false);
-  const [isGeneratingKit, setIsGeneratingKit] = useState(false);
+  const [isProcessingCandidate, setIsProcessingCandidate] = useState(false);
+  const [autoPipelineStatus, setAutoPipelineStatus] = useState(null);
+
+  // Ref to track active candidate pipeline processing and prevent duplicate concurrent API calls
+  const activeProcessingRef = useRef(new Set());
 
   // Toast Notification state
   const [toastMessage, setToastMessage] = useState(null);
@@ -42,7 +41,7 @@ export default function App() {
     init();
   }, []);
 
-  // Sync candidates when selectedJob changes
+  // Sync candidates when selectedJob changes (single source of truth)
   useEffect(() => {
     if (!selectedJob) {
       setCandidates([]);
@@ -56,32 +55,86 @@ export default function App() {
         setCandidates(detail.candidates);
         if (detail.candidates.length > 0 && !selectedCandidate) {
           const candDetail = await api.getCandidateDetail(detail.candidates[0].id);
-          setSelectedCandidate(candDetail);
+          autoProcessCandidatePipeline(candDetail);
         }
       }
     };
     fetchJobDetail();
   }, [selectedJob?.id]);
 
-  // Handle Select Job
-  const handleSelectJob = async (job) => {
-    setSelectedJob(job);
-    const detail = await api.getJobDetail(job.id);
-    if (detail && detail.candidates && detail.candidates.length > 0) {
-      const candDetail = await api.getCandidateDetail(detail.candidates[0].id);
-      setSelectedCandidate(candDetail);
-    } else {
-      setSelectedCandidate(null);
+  // AUTOMATED BACKGROUND AI PIPELINE FUNCTION (Deduplicated)
+  const autoProcessCandidatePipeline = async (cand) => {
+    if (!cand || !selectedJob) return;
+
+    // Prevent duplicate concurrent pipeline calls for the same candidate ID
+    if (activeProcessingRef.current.has(cand.id)) return;
+    activeProcessingRef.current.add(cand.id);
+
+    setSelectedCandidate(cand);
+
+    // If candidate already has complete profile, screening, and interview kit, no need to re-run
+    if (cand.profile_json && cand.screening_json && cand.interview_kit_json) {
+      activeProcessingRef.current.delete(cand.id);
+      return;
+    }
+
+    setIsProcessingCandidate(true);
+    let updatedCand = cand;
+
+    try {
+      // Step 1: Auto-Extract Profile if needed
+      if (!updatedCand.profile_json) {
+        setAutoPipelineStatus("Parsing Candidate Profile...");
+        updatedCand = await api.extractCandidateProfile(updatedCand.id);
+        setSelectedCandidate(updatedCand);
+      }
+
+      // Step 2: Auto-Screen Candidate Match if needed
+      if (!updatedCand.screening_json) {
+        setAutoPipelineStatus("Evaluating Match Index...");
+        updatedCand = await api.screenCandidate(updatedCand.id);
+        setSelectedCandidate(updatedCand);
+      }
+
+      // Step 3: Auto-Generate Interview Kit if needed
+      if (!updatedCand.interview_kit_json) {
+        setAutoPipelineStatus("Generating Interview Questions...");
+        updatedCand = await api.generateInterviewKit(updatedCand.id);
+        setSelectedCandidate(updatedCand);
+      }
+
+      // Update state
+      setCandidates((prev) => prev.map((c) => (c.id === updatedCand.id ? updatedCand : c)));
+      showToast(`AI Pipeline complete for ${updatedCand.filename}!`);
+    } catch (err) {
+      console.error("Auto pipeline error:", err);
+    } finally {
+      activeProcessingRef.current.delete(cand.id);
+      setIsProcessingCandidate(false);
+      setAutoPipelineStatus(null);
     }
   };
 
-  // Create Job
+  // Handle Select Job (Clean & Deduplicated)
+  const handleSelectJob = (job) => {
+    setSelectedJob(job);
+  };
+
+  // Create Job & Auto-Extract Requirements
   const handleCreateJob = async (title, description_text) => {
-    const newJob = await api.createJob(title, description_text);
-    setJobs((prev) => [newJob, ...prev]);
-    setSelectedJob(newJob);
-    setActiveTab('jobs');
-    showToast(`Created Job Opening: "${title}"`);
+    try {
+      const newJob = await api.createJob(title, description_text);
+      setJobs((prev) => [newJob, ...prev]);
+      setSelectedJob(newJob);
+      setActiveTab('jobs');
+      showToast(`Created Job Opening: "${title}". Extracting requirements...`);
+
+      // Automatically trigger requirement extraction for the newly created job
+      await handleExtractRequirements(newJob.id);
+    } catch (err) {
+      console.error('Failed to create job:', err);
+      showToast("Failed to create job opening", "error");
+    }
   };
 
   // Extract Requirements
@@ -100,70 +153,28 @@ export default function App() {
     }
   };
 
-  // Upload Resume
-  const handleUploadResume = async (file) => {
-    if (!selectedJob) return;
-    setIsUploading(true);
-    try {
-      const newCand = await api.uploadCandidateResume(selectedJob.id, file);
-      setCandidates((prev) => [...prev, newCand]);
-      setSelectedCandidate(newCand);
-      setActiveTab('candidates');
-      showToast(`Uploaded resume: ${file.name}`);
-    } catch (err) {
-      console.error('Failed to upload candidate resume:', err);
-      showToast("Upload failed", "error");
-    } finally {
-      setIsUploading(false);
-    }
-  };
+  // Upload Resume(s) (Single or Multi-Select)
+  const handleUploadResumes = async (input) => {
+    if (!selectedJob || !input) return;
+    const fileList = input instanceof FileList || Array.isArray(input) ? Array.from(input) : [input];
+    if (fileList.length === 0) return;
 
-  // Extract Profile
-  const handleExtractProfile = async (candidateId) => {
-    setIsExtractingProfile(true);
-    try {
-      const updatedCand = await api.extractCandidateProfile(candidateId);
-      setSelectedCandidate(updatedCand);
-      setCandidates((prev) => prev.map((c) => (c.id === candidateId ? updatedCand : c)));
-      showToast("Candidate profile structured!");
-    } catch (err) {
-      console.error('Failed to extract candidate profile:', err);
-      showToast("Profile extraction failed", "error");
-    } finally {
-      setIsExtractingProfile(false);
-    }
-  };
+    showToast(`Uploading ${fileList.length} resume${fileList.length > 1 ? 's' : ''}...`);
 
-  // Screen Candidate
-  const handleScreenCandidate = async (candidateId) => {
-    setIsScreening(true);
-    try {
-      const updatedCand = await api.screenCandidate(candidateId);
-      setSelectedCandidate(updatedCand);
-      setCandidates((prev) => prev.map((c) => (c.id === candidateId ? updatedCand : c)));
-      showToast(`Match score evaluated: ${updatedCand?.screening_json?.overall_match_score}%`);
-      return updatedCand;
-    } catch (err) {
-      console.error('Failed to screen candidate:', err);
-      showToast("Screening evaluation failed", "error");
-    } finally {
-      setIsScreening(false);
-    }
-  };
-
-  // Generate Interview Kit
-  const handleGenerateInterviewKit = async (candidateId) => {
-    setIsGeneratingKit(true);
-    try {
-      const updatedCand = await api.generateInterviewKit(candidateId);
-      setSelectedCandidate(updatedCand);
-      setCandidates((prev) => prev.map((c) => (c.id === candidateId ? updatedCand : c)));
-      showToast("Interview Question Kit generated!");
-    } catch (err) {
-      console.error('Failed to generate interview kit:', err);
-      showToast("Interview kit generation failed", "error");
-    } finally {
-      setIsGeneratingKit(false);
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i];
+      try {
+        const newCand = await api.uploadCandidateResume(selectedJob.id, file);
+        setCandidates((prev) => {
+          const exists = prev.some((c) => c.id === newCand.id);
+          return exists ? prev : [...prev, newCand];
+        });
+        setActiveTab('candidates');
+        autoProcessCandidatePipeline(newCand);
+      } catch (err) {
+        console.error('Failed to upload candidate resume:', err);
+        showToast(`Upload failed for ${file.name}`, 'error');
+      }
     }
   };
 
@@ -177,14 +188,15 @@ export default function App() {
       created_at: new Date().toISOString()
     };
     setCandidates((prev) => [newCand, ...prev]);
-    setSelectedCandidate(newCand);
+    setActiveTab('candidates');
     showToast(`Added candidate: ${newCand.filename}`);
+    autoProcessCandidatePipeline(newCand);
   };
 
   // Compute stats
   const topMatches = candidates.filter(c => (c.screening_json?.overall_match_score || 0) >= 80).length;
   const scores = candidates.map(c => c.screening_json?.overall_match_score).filter(Boolean);
-  const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 84;
+  const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
 
   return (
     <div className="min-h-screen bg-radial-ambient text-slate-100 flex flex-col selection:bg-blue-600 selection:text-white pb-12">
@@ -202,16 +214,17 @@ export default function App() {
         </div>
       )}
 
-      {/* Clean Header */}
+      {/* Header */}
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         stats={{
           activeJobs: jobs.length,
-          candidatesScreened: candidates.length || 2,
-          topMatches: topMatches || 1,
+          candidatesScreened: candidates.length,
+          topMatches: topMatches,
           avgScore
         }}
+        autoPipelineStatus={autoPipelineStatus}
       />
 
       {/* Main Workspace */}
@@ -229,46 +242,19 @@ export default function App() {
 
         {activeTab === 'candidates' && (
           <CandidateHub
+            jobs={jobs}
             selectedJob={selectedJob}
+            onSelectJob={handleSelectJob}
             candidates={candidates}
             selectedCandidate={selectedCandidate}
             onSelectCandidate={async (c) => {
               const fullDetail = await api.getCandidateDetail(c.id);
-              setSelectedCandidate(fullDetail);
+              autoProcessCandidatePipeline(fullDetail);
             }}
-            onUploadResume={handleUploadResume}
-            onExtractProfile={handleExtractProfile}
-            isUploading={isUploading}
-            isExtractingProfile={isExtractingProfile}
+            onUploadResumes={handleUploadResumes}
+            onUploadResume={handleUploadResumes}
+            isProcessingCandidate={isProcessingCandidate}
             onInjectMockCandidate={handleInjectMockCandidate}
-          />
-        )}
-
-        {activeTab === 'screening' && (
-          <ScreeningMatrix
-            selectedCandidate={selectedCandidate}
-            selectedJob={selectedJob}
-            candidates={candidates}
-            onSelectCandidate={async (c) => {
-              const fullDetail = await api.getCandidateDetail(c.id);
-              setSelectedCandidate(fullDetail);
-            }}
-            onScreenCandidate={handleScreenCandidate}
-            isScreening={isScreening}
-          />
-        )}
-
-        {activeTab === 'interview' && (
-          <InterviewIntelligence
-            selectedCandidate={selectedCandidate}
-            selectedJob={selectedJob}
-            candidates={candidates}
-            onSelectCandidate={async (c) => {
-              const fullDetail = await api.getCandidateDetail(c.id);
-              setSelectedCandidate(fullDetail);
-            }}
-            onGenerateInterviewKit={handleGenerateInterviewKit}
-            isGeneratingKit={isGeneratingKit}
           />
         )}
       </main>
