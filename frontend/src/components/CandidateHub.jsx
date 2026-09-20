@@ -74,22 +74,32 @@ export default function CandidateHub({
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
+  const getCandidateScore = (c) => {
+    if (c?.screening_json?.overall_match_score !== undefined && c?.screening_json?.overall_match_score !== null) {
+      return c.screening_json.overall_match_score;
+    }
+    if (c?.mapping_json?.overall_match_score !== undefined && c?.mapping_json?.overall_match_score !== null) {
+      return c.mapping_json.overall_match_score;
+    }
+    return undefined;
+  };
+
   const candidateList = (candidates || [])
     .filter(c => c.filename.toLowerCase().includes(searchQuery.toLowerCase()))
     .sort((a, b) => {
       if (sortBy === 'match') {
-        const scoreA = a.screening_json?.overall_match_score ?? (a.profile_json ? 82 : 0);
-        const scoreB = b.screening_json?.overall_match_score ?? (b.profile_json ? 82 : 0);
-        return scoreB - scoreA; // Highest match percentage first
+        const scoreA = getCandidateScore(a) ?? -1;
+        const scoreB = getCandidateScore(b) ?? -1;
+        return scoreB - scoreA;
       } else {
-        return (b.id || 0) - (a.id || 0); // Newest uploaded first
+        return (b.id || 0) - (a.id || 0);
       }
     });
 
   const profile = selectedCandidate?.profile_json;
   const screening = selectedCandidate?.screening_json;
   const kit = selectedCandidate?.interview_kit_json;
-  const matchScore = screening?.overall_match_score ?? (selectedCandidate?.mapping_json ? 75 : (profile ? 82 : 0));
+  const matchScore = getCandidateScore(selectedCandidate);
 
   const jobRequirements = selectedJob?.requirements_json?.requirements || [];
 
@@ -249,7 +259,7 @@ export default function CandidateHub({
                 {candidateList.length > 0 ? (
                   candidateList.map((cand) => {
                     const isSelected = selectedCandidate?.id === cand.id;
-                    const score = cand.screening_json?.overall_match_score ?? (cand.profile_json ? (cand.screening_json?.overall_match_score || 85) : undefined);
+                    const score = getCandidateScore(cand);
 
                     return (
                       <div

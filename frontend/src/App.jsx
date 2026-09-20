@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Header from './components/Header';
 import JobManager from './components/JobManager';
 import CandidateHub from './components/CandidateHub';
@@ -17,6 +17,9 @@ export default function App() {
   const [isExtractingRequirements, setIsExtractingRequirements] = useState(false);
   const [isProcessingCandidate, setIsProcessingCandidate] = useState(false);
   const [autoPipelineStatus, setAutoPipelineStatus] = useState(null);
+
+  // Ref to track active candidate pipeline processing and prevent duplicate concurrent API calls
+  const activeProcessingRef = useRef(new Set());
 
   // Toast Notification state
   const [toastMessage, setToastMessage] = useState(null);
@@ -38,7 +41,7 @@ export default function App() {
     init();
   }, []);
 
-  // Sync candidates when selectedJob changes
+  // Sync candidates when selectedJob changes (single source of truth)
   useEffect(() => {
     if (!selectedJob) {
       setCandidates([]);
@@ -59,14 +62,19 @@ export default function App() {
     fetchJobDetail();
   }, [selectedJob?.id]);
 
-  // AUTOMATED BACKGROUND AI PIPELINE FUNCTION
+  // AUTOMATED BACKGROUND AI PIPELINE FUNCTION (Deduplicated)
   const autoProcessCandidatePipeline = async (cand) => {
     if (!cand || !selectedJob) return;
+
+    // Prevent duplicate concurrent pipeline calls for the same candidate ID
+    if (activeProcessingRef.current.has(cand.id)) return;
+    activeProcessingRef.current.add(cand.id);
 
     setSelectedCandidate(cand);
 
     // If candidate already has complete profile, screening, and interview kit, no need to re-run
     if (cand.profile_json && cand.screening_json && cand.interview_kit_json) {
+      activeProcessingRef.current.delete(cand.id);
       return;
     }
 
@@ -101,21 +109,15 @@ export default function App() {
     } catch (err) {
       console.error("Auto pipeline error:", err);
     } finally {
+      activeProcessingRef.current.delete(cand.id);
       setIsProcessingCandidate(false);
       setAutoPipelineStatus(null);
     }
   };
 
-  // Handle Select Job
-  const handleSelectJob = async (job) => {
+  // Handle Select Job (Clean & Deduplicated)
+  const handleSelectJob = (job) => {
     setSelectedJob(job);
-    const detail = await api.getJobDetail(job.id);
-    if (detail && detail.candidates && detail.candidates.length > 0) {
-      const candDetail = await api.getCandidateDetail(detail.candidates[0].id);
-      autoProcessCandidatePipeline(candDetail);
-    } else {
-      setSelectedCandidate(null);
-    }
   };
 
   // Create Job & Auto-Extract Requirements
