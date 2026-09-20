@@ -6,3 +6,5 @@ __pycache__/
 .mypy_cache/
 tests
 reset_db.py
+sample_resumes
+test_resumes

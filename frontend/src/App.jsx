@@ -72,8 +72,8 @@ export default function App() {
 
     setSelectedCandidate(cand);
 
-    // If candidate already has complete profile, screening, and interview kit, no need to re-run
-    if (cand.profile_json && cand.screening_json && cand.interview_kit_json) {
+    // If candidate already has complete profile, mapping, and questions, no need to re-run
+    if (cand.profile_json && cand.mapping_json && cand.interview_questions_json) {
       activeProcessingRef.current.delete(cand.id);
       return;
     }
@@ -89,15 +89,15 @@ export default function App() {
         setSelectedCandidate(updatedCand);
       }
 
-      // Step 2: Auto-Screen Candidate Match if needed
-      if (!updatedCand.screening_json) {
+      // Step 2: Auto-Map Requirements if needed
+      if (!updatedCand.mapping_json) {
         setAutoPipelineStatus("Evaluating Match Index...");
         updatedCand = await api.screenCandidate(updatedCand.id);
         setSelectedCandidate(updatedCand);
       }
 
-      // Step 3: Auto-Generate Interview Kit if needed
-      if (!updatedCand.interview_kit_json) {
+      // Step 3: Auto-Generate Interview Questions if needed
+      if (!updatedCand.interview_questions_json) {
         setAutoPipelineStatus("Generating Interview Questions...");
         updatedCand = await api.generateInterviewKit(updatedCand.id);
         setSelectedCandidate(updatedCand);
@@ -161,6 +161,7 @@ export default function App() {
 
     showToast(`Uploading ${fileList.length} resume${fileList.length > 1 ? 's' : ''}...`);
 
+    // Process each file sequentially — avoids parallel Gemini API calls hitting the rate limit
     for (let i = 0; i < fileList.length; i++) {
       const file = fileList[i];
       try {
@@ -170,7 +171,7 @@ export default function App() {
           return exists ? prev : [...prev, newCand];
         });
         setActiveTab('candidates');
-        autoProcessCandidatePipeline(newCand);
+        await autoProcessCandidatePipeline(newCand);  // await — run one at a time
       } catch (err) {
         console.error('Failed to upload candidate resume:', err);
         showToast(`Upload failed for ${file.name}`, 'error');

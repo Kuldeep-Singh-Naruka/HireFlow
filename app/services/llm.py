@@ -159,7 +159,7 @@ def extract_candidate_profile(raw_text: str) -> CandidateProfileExtraction:
 
 
 # ---------------------------------------------------------------------------
-# Milestone 3 — Requirement Mapping Schemas
+# Requirement Mapping Schemas
 # ---------------------------------------------------------------------------
 
 class RequirementMapping(BaseModel):
@@ -212,7 +212,7 @@ class MappingResult(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Milestone 3 — Mapping Prompt
+# Requirement Mapping Prompt
 # ---------------------------------------------------------------------------
 
 REQUIREMENT_MAPPING_PROMPT = ChatPromptTemplate.from_messages(
@@ -269,7 +269,7 @@ REQUIREMENT_MAPPING_PROMPT = ChatPromptTemplate.from_messages(
 
 
 # ---------------------------------------------------------------------------
-# Milestone 3 — Mapping Function
+# Requirement Mapping Function
 # ---------------------------------------------------------------------------
 
 def map_requirements_to_evidence(
@@ -279,7 +279,7 @@ def map_requirements_to_evidence(
 ) -> MappingResult:
     """Call the LLM with structured output against MappingResult.
 
-    Passes the LLM both `profile` (the Milestone 2 structured summary,
+    Passes the LLM both `profile` (the structured profile summary,
     for a quick overview) AND the full `raw_text` (the ground truth to
     quote evidence from). evidence_snippet must be traceable to raw_text,
     not invented from the profile summary alone.
@@ -288,7 +288,7 @@ def map_requirements_to_evidence(
         requirements: List of requirement dicts from job.requirements_json["requirements"].
                       Each dict has at minimum "requirement_text", "category", "is_required".
         raw_text:     The candidate's full extracted resume text (ground truth).
-        profile:      The candidate's profile_json dict (Milestone 2 output — context only).
+        profile:      The candidate's profile_json dict (context only).
 
     Returns:
         MappingResult with one RequirementMapping per requirement, in order.
@@ -342,7 +342,7 @@ def map_requirements_to_evidence(
 
 
 # ---------------------------------------------------------------------------
-# Milestone 4 — Interview Question Schemas
+# Interview Question Schemas
 # ---------------------------------------------------------------------------
 
 class InterviewQuestion(BaseModel):
@@ -385,7 +385,7 @@ class InterviewQuestionSet(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Milestone 4 — Question Generation Prompt
+# Interview Question Generation Prompt
 # ---------------------------------------------------------------------------
 
 INTERVIEW_QUESTION_PROMPT = ChatPromptTemplate.from_messages(
@@ -438,7 +438,7 @@ INTERVIEW_QUESTION_PROMPT = ChatPromptTemplate.from_messages(
 
 
 # ---------------------------------------------------------------------------
-# Milestone 4 — Question Generation Function
+# Interview Question Generation Function
 # ---------------------------------------------------------------------------
 
 def generate_interview_questions(
