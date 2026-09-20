@@ -88,6 +88,11 @@ def extract_profile_endpoint(
     response_model=CandidateDetailResponse,
     summary="Map job requirements against a candidate's resume evidence using LLM",
 )
+@router.post(
+    "/candidates/{candidate_id}/match",
+    response_model=CandidateDetailResponse,
+    summary="Alias for map-requirements endpoint",
+)
 def map_requirements_endpoint(
     candidate_id: int, db: Session = Depends(get_db)
 ) -> Candidate:
@@ -173,6 +178,11 @@ def map_requirements_endpoint(
     "/candidates/{candidate_id}/generate-questions",
     response_model=CandidateDetailResponse,
     summary="Generate 5-8 interview questions from the requirement mapping using LLM",
+)
+@router.post(
+    "/candidates/{candidate_id}/interview-kit",
+    response_model=CandidateDetailResponse,
+    summary="Alias for generate-questions endpoint",
 )
 def generate_questions_endpoint(
     candidate_id: int, db: Session = Depends(get_db)
