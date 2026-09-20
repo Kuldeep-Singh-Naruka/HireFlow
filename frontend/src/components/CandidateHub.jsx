@@ -38,6 +38,7 @@ export default function CandidateHub({
   const [dragActive, setDragActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedIndex, setCopiedIndex] = useState(null);
+  const [sortBy, setSortBy] = useState('match'); // Default sort: Match Percentage Descending
 
   const uploader = onUploadResumes || onUploadResume;
 
@@ -73,9 +74,17 @@ export default function CandidateHub({
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
-  const candidateList = (candidates || []).filter(c => 
-    c.filename.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const candidateList = (candidates || [])
+    .filter(c => c.filename.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => {
+      if (sortBy === 'match') {
+        const scoreA = a.screening_json?.overall_match_score ?? (a.profile_json ? 82 : 0);
+        const scoreB = b.screening_json?.overall_match_score ?? (b.profile_json ? 82 : 0);
+        return scoreB - scoreA; // Highest match percentage first
+      } else {
+        return (b.id || 0) - (a.id || 0); // Newest uploaded first
+      }
+    });
 
   const profile = selectedCandidate?.profile_json;
   const screening = selectedCandidate?.screening_json;
@@ -211,17 +220,28 @@ export default function CandidateHub({
                 </h3>
               </div>
 
-              {/* Roster Search Input */}
+              {/* Roster Search & Sort Control Bar */}
               {candidates.length > 0 && (
-                <div className="relative">
-                  <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
-                  <input
-                    type="text"
-                    placeholder="Search candidate..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#090A0F] border border-[#1E2638] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
-                  />
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      placeholder="Search candidate..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#090A0F] border border-[#1E2638] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="bg-[#090A0F] border border-[#1E2638] text-slate-300 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-500 cursor-pointer font-medium"
+                    title="Sort candidate roster"
+                  >
+                    <option value="match">Match % (High to Low)</option>
+                    <option value="newest">Newest First</option>
+                  </select>
                 </div>
               )}
 
