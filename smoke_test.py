@@ -1,6 +1,6 @@
 """
-smoke_test.py — HireFlow end-to-end smoke test (Milestones 1–3)
-================================================================
+smoke_test.py — HireFlow end-to-end smoke test
+===============================================
 
 Prerequisites
 -------------
@@ -14,11 +14,10 @@ Run
 ---
     python smoke_test.py
 
-Milestone 1 checks: job creation, PDF/DOCX upload, .txt rejection,
-                    job detail list, raw_text sanity.
-Milestone 2 checks: job requirements extraction, candidate profile extraction.
-Milestone 3 checks: map-requirements happy path, count assertion,
-                    evidence_snippet presence, 400 guard paths, manual eyeball.
+Checks: job creation, PDF/DOCX upload, .txt rejection, job detail,
+        raw_text extraction, job requirements extraction, candidate profile
+        extraction, requirement mapping (map-requirements), evidence snippets,
+        400 guard paths, interview question generation, and idempotency.
 """
 from __future__ import annotations
 
@@ -171,8 +170,7 @@ def main() -> None:
         print(f"    Preview: {preview!r}")
 
     # ------------------------------------------------------------------
-    # Milestone 2: extract job requirements + candidate profile
-    # (needed as prerequisites for M3 mapping)
+    # Requirements extraction + candidate profile
     # ------------------------------------------------------------------
     resp = requests.post(f"{BASE_URL}/jobs/{job_id}/extract-requirements")
     assert_status(resp, 200, "extract job requirements")
@@ -195,7 +193,7 @@ def main() -> None:
         print(f"[8] Candidate profile extracted — profile_status=ok ✓")
 
     # ------------------------------------------------------------------
-    # Milestone 3 — [A] 400 guard: map-requirements before profile is ready
+    # 400 guard: map-requirements before profile is ready
     # Create a fresh candidate (no profile extracted yet) and assert 400
     # ------------------------------------------------------------------
     if os.path.exists(PDF_PATH):
@@ -215,7 +213,7 @@ def main() -> None:
         print("[9] map-requirements 400 guard (no profile) ✓")
 
     # ------------------------------------------------------------------
-    # Milestone 3 — [B] Happy path: map requirements for the PDF candidate
+    # Requirement mapping — happy path
     # ------------------------------------------------------------------
     if pdf_candidate_id is not None:
         resp = requests.post(
@@ -274,10 +272,10 @@ def main() -> None:
                 print(f"     Note        : {m['validation_note']}")
         print("=" * 70)
 
-    print("\n✅  All smoke tests passed (Milestones 1–3)!")
+    print("\n✅  All smoke tests passed!")
 
     # ==================================================================
-    # MILESTONE 4 — Interview Question Generation
+    # Interview Question Generation
     # ==================================================================
 
     if pdf_candidate_id is not None:
@@ -351,7 +349,7 @@ def main() -> None:
             print(f"     Question    : {q['question_text']}")
         print("=" * 70)
 
-    print("\n✅  All smoke tests passed (Milestones 1–4)!")
+    print("\n✅  All smoke tests passed (full pipeline)!")
 
 
 if __name__ == "__main__":

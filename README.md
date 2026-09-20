@@ -1,54 +1,66 @@
-# HireFlow — AI-Powered Hiring Pipeline
+# HireFlow — AI-Powered Hiring Intelligence Platform
 
-> **Hackathon project.**  
-> Four milestones complete: resume ingestion → structured extraction → requirement mapping → interview question generation.
+> **Built for a hackathon.** HireFlow transforms a raw job description and a pile of resumes into a structured, evidence-backed hiring decision — no spreadsheets, no guesswork.
 
 ---
 
-## Milestones
+## What It Does
 
-| # | Milestone | Status |
-|---|---|---|
-| 1 | Job & resume ingestion (PDF/DOCX parsing) | ✅ Done |
-| 2 | LLM-powered structured extraction (job requirements + candidate profile) | ✅ Done |
-| 3 | Requirement-to-evidence mapping (per-requirement verdict grounded in raw resume text) | ✅ Done |
-| 4 | Interview question generation (prioritised, resume-specific questions) | ✅ Done |
+HireFlow is a full-stack AI hiring assistant that automates the most time-consuming parts of the recruiting process:
+
+1. **Parse resumes** — Upload PDF or DOCX files and extract clean text automatically.
+2. **Understand the job** — Paste a job description and let the AI extract every structured requirement (required vs. nice-to-have, category, skill).
+3. **Map candidates to requirements** — For every job requirement, the AI finds actual evidence from the candidate's resume text — or flags it as a gap. No hallucination: every verdict is grounded in the raw resume, not a summary.
+4. **Generate interview questions** — Automatically produce prioritized, resume-specific interview questions. Validation questions target unknowns, probe questions dig into partial matches, general questions confirm strengths.
+5. **Visual scoring dashboard** — See a computed Requirement Fit Score, a per-requirement audit trail, and the full interview kit — all in a modern React UI.
 
 ---
 
 ## Tech Stack
 
-- **Python 3.12**, **FastAPI**, **Uvicorn**
-- **SQLAlchemy 2.0** — sync ORM, `create_all()` on startup (no Alembic)
-- **PostgreSQL** via [Neon](https://neon.tech) — connection string from `DATABASE_URL`
+### Backend
+- **Python 3.12** · **FastAPI** · **Uvicorn**
+- **SQLAlchemy 2.0** — sync ORM, auto-created tables on startup
+- **PostgreSQL** via [Neon](https://neon.tech) serverless
 - **PyMuPDF** (`fitz`) — PDF text extraction
 - **python-docx** — DOCX text extraction
 - **LangChain + Groq** (`langchain-groq`) — structured LLM output for all AI steps
+- **Model:** `qwen/qwen3.8-27b` — full tool/function-calling support, 128K context window
+
+### Frontend
+- **React 18** · **Vite** · **Tailwind CSS**
+- Glassmorphic dark UI with micro-animations
+- Fully functional offline demo mode (mock data fallback)
 
 ---
 
-## Folder Structure
+## Project Structure
 
 ```
 HireFlow/
 ├── app/
 │   ├── core/config.py          ← Settings (DATABASE_URL, GROQ_API_KEY, GROQ_MODEL)
-│   ├── database.py             ← engine, SessionLocal, Base, get_db
+│   ├── database.py             ← Engine, SessionLocal, Base, get_db
 │   ├── models/
 │   │   ├── job.py              ← Job ORM model
-│   │   └── candidate.py        ← Candidate ORM model (all milestone columns)
+│   │   └── candidate.py        ← Candidate ORM model
 │   ├── schemas/
-│   │   ├── job_schema.py       ← JobCreate, JobResponse, JobDetailResponse
-│   │   └── candidate_schema.py ← CandidateUploadResponse, CandidateDetailResponse
+│   │   ├── job_schema.py       ← Request/response schemas for jobs
+│   │   └── candidate_schema.py ← Request/response schemas for candidates
 │   ├── services/
-│   │   ├── extraction.py       ← PDF + DOCX text extraction (no DB/FastAPI)
-│   │   └── llm.py              ← All LLM schemas + functions (M2, M3, M4)
+│   │   ├── extraction.py       ← PDF + DOCX text extraction
+│   │   └── llm.py              ← All LLM schemas + AI functions
 │   └── routers/
-│       ├── jobs.py             ← POST /jobs · GET /jobs/{id} · POST /jobs/{id}/extract-requirements
-│       └── candidates.py       ← All candidate endpoints (upload, profile, mapping, questions)
-├── main.py                     ← FastAPI app + lifespan (create_all) + router registration
-├── smoke_test.py               ← End-to-end smoke test (Milestones 1–4)
-├── reset_db.py                 ← Drop + recreate all tables (run when models gain new columns)
+│       ├── jobs.py             ← Job endpoints
+│       └── candidates.py       ← Candidate endpoints
+├── frontend/
+│   └── src/
+│       ├── components/         ← React UI components
+│       └── services/           ← API client + mock data
+├── main.py                     ← FastAPI app entry point
+├── smoke_test.py               ← End-to-end API test
+├── reset_db.py                 ← Drop + recreate all tables
+├── test_resumes/               ← 10 test resumes (PDF + DOCX mix)
 ├── requirements.txt
 ├── .env.example
 └── .gitignore
@@ -58,7 +70,7 @@ HireFlow/
 
 ## Quick Start
 
-### 1. Clone & create a virtual environment
+### 1. Clone & set up the virtual environment
 
 ```powershell
 cd HireFlow
@@ -67,27 +79,39 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-### 2. Configure environment
+### 2. Configure environment variables
 
 ```powershell
 Copy-Item .env.example .env
-# Edit .env:
+# Fill in your values:
 # DATABASE_URL=postgresql+psycopg2://user:pass@host/dbname?sslmode=require
 # GROQ_API_KEY=your_groq_api_key_here
-# GROQ_MODEL=llama3-70b-8192   # or any Groq-hosted model
+# GROQ_MODEL=qwen/qwen3.8-27b
 ```
 
-### 3. Run the server
+> **Important:** Use `qwen/qwen3.8-27b`. Models routed through `openai/*` on Groq do **not** support tool calling and will fail with structured output.
+
+### 3. Start the backend
 
 ```powershell
 python main.py
 ```
 
 > Tables are **auto-created on first startup** via `Base.metadata.create_all()`.  
-> After adding new model columns (e.g. between milestones), run `python reset_db.py` to drop and recreate all tables.
+> If you ever need a clean slate, run `python reset_db.py`.
 
-Interactive API docs: **http://127.0.0.1:8000/docs**  
-Health check: **http://127.0.0.1:8000/health**
+- Interactive API docs: **http://127.0.0.1:8000/docs**
+- Health check: **http://127.0.0.1:8000/health**
+
+### 4. Start the frontend
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend runs on **http://localhost:5173**
 
 ---
 
@@ -95,161 +119,125 @@ Health check: **http://127.0.0.1:8000/health**
 
 ### Jobs
 
-#### `POST /jobs`
-Create a job posting.
-```json
-// Request
-{ "title": "Senior Python Engineer", "description_text": "We need..." }
-// 201 Response
-{ "id": 1, "title": "...", "description_text": "...", "created_at": "..." }
-```
-
-#### `POST /jobs/{job_id}/extract-requirements`
-Extract structured requirements from the job description using LLM.
-```json
-// 200 Response — requirements_status="ok"
-{
-  "requirements_json": {
-    "requirements": [
-      { "requirement_text": "Python", "category": "skill", "is_required": true },
-      ...
-    ]
-  },
-  "requirements_status": "ok"
-}
-```
-
-#### `GET /jobs/{job_id}`
-Returns the job + a lightweight list of its candidates (no `raw_text`).
-
----
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/jobs` | Create a job posting |
+| `GET` | `/jobs` | List all jobs |
+| `GET` | `/jobs/{id}` | Get job detail with candidate list |
+| `POST` | `/jobs/{id}/extract-requirements` | AI-extract structured requirements from description |
 
 ### Candidates
 
-#### `POST /jobs/{job_id}/candidates`
-Upload a resume (multipart, field name `file`). Supports `.pdf` and `.docx`.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/jobs/{job_id}/candidates` | Upload a resume (PDF or DOCX) |
+| `GET` | `/candidates/{id}` | Get full candidate record |
+| `POST` | `/candidates/{id}/extract-profile` | AI-extract structured profile from resume |
+| `POST` | `/candidates/{id}/map-requirements` | Map each job requirement to resume evidence |
+| `POST` | `/candidates/{id}/generate-questions` | Generate prioritized interview questions |
+
+#### Resume upload behavior
 
 | Scenario | HTTP | `extraction_status` |
-|---|---|---|
+|----------|------|---------------------|
 | Valid file with text | 201 | `ok` |
-| Valid file, no text layer (scanned / table-layout DOCX) | 201 | `empty` |
-| Valid file, extraction crashes | 201 | `error` |
+| Valid file, no text layer (scanned or table-layout DOCX) | 201 | `empty` |
 | Unsupported extension | 400 | — |
 | File > 10 MB | 400 | — |
 | Job not found | 404 | — |
 
-#### `POST /candidates/{id}/extract-profile`
-Extract structured profile (summary, skills, experience, projects, education) from `raw_text` using LLM.  
-Prerequisite: `extraction_status == "ok"`
+---
 
-#### `POST /candidates/{id}/map-requirements`
-Map every job requirement to evidence grounded in the candidate's raw resume text.  
-Returns per-requirement: `status` (met/partial/gap), `evidence_snippet`, `needs_validation`, `validation_note`.  
-Prerequisites: `extraction_status == "ok"` · `profile_status == "ok"` · `job.requirements_status == "ok"`
+## AI Pipeline Response Shapes
 
-#### `POST /candidates/{id}/generate-questions`
-Generate 5–8 prioritised interview questions from the mapping output.  
-Priority order: **validation** (gaps + needs_validation=True) → **probe** (partial matches) → **general** (met matches).  
-Prerequisite: `mapping_status == "ok"`
+### Requirement Mapping (`mapping_json`)
+```json
+{
+  "mappings": [
+    {
+      "requirement_text": "5+ years Python experience",
+      "status": "met | partial | gap",
+      "evidence_snippet": "Direct quote from resume, or null",
+      "needs_validation": true,
+      "validation_note": "Why this was flagged for follow-up, or null"
+    }
+  ]
+}
+```
 
-#### `GET /candidates/{id}`
-Returns the **full** candidate record including `raw_text`, `profile_json`, `mapping_json`, and `interview_questions_json`.
+### Interview Questions (`interview_questions_json`)
+```json
+{
+  "questions": [
+    {
+      "question_text": "Walk me through...",
+      "target_requirement": "5+ years Python experience",
+      "question_type": "validation | probe | general"
+    }
+  ]
+}
+```
 
 ---
 
-## Candidate Data Model (all milestones)
+## How the Match Score Is Calculated
+
+The **Requirement Fit Score** shown in the UI is computed transparently from the mapping output — not invented by the LLM:
 
 ```
-Candidate
-├── id, job_id, filename, created_at
-│
-├── [M1] raw_text                    ← extracted resume text
-├── [M1] extraction_status           ← ok | empty | error
-├── [M1] extraction_error
-│
-├── [M2] profile_json                ← { summary, skills, experience, projects, education }
-├── [M2] profile_status              ← not_extracted | ok | error
-├── [M2] profile_error
-│
-├── [M3] mapping_json                ← { mappings: [{ requirement_text, status, evidence_snippet, needs_validation, validation_note }] }
-├── [M3] mapping_status              ← not_mapped | ok | error
-├── [M3] mapping_error
-│
-├── [M4] interview_questions_json    ← { questions: [{ question_text, target_requirement, question_type }] }
-├── [M4] interview_questions_status  ← not_generated | ok | error
-└── [M4] interview_questions_error
+score = round(((met_count + 0.5 * partial_count) / total_count) * 100)
 ```
+
+- **met** → full credit
+- **partial** → half credit
+- **gap** → no credit
+
+The recommendation badge is also derived from counts:
+- **Strong Match** — zero gaps and zero validation flags
+- **Significant Gaps** — any requirement with `status: gap`
+- **Review Required** — partial matches or validation flags, but no outright gaps
 
 ---
 
 ## Running the Smoke Test
 
-### Prerequisites
-
-1. Drop real resume files into `tests/fixtures/`:
-   - `sample_resume.pdf`
-   - `sample_resume.docx`
-2. Server is running (`python main.py`)
-3. `.env` has `DATABASE_URL` and `GROQ_API_KEY` set
+Make sure the server is running, then in a second terminal:
 
 ```powershell
 python smoke_test.py
 ```
 
-Expected output:
-```
-[1]  Job created
-[2]  PDF uploaded         — extraction_status=ok
-[3]  DOCX uploaded        — extraction_status=ok (or empty for table-layout templates)
-[4]  .txt rejected        — HTTP 400 ✓
-[5]  Job detail           — candidates list ✓
-[6]  PDF candidate detail — raw_text non-empty ✓
-[7]  Job requirements extracted ✓
-[8]  Candidate profile extracted ✓
-[9]  map-requirements 400 guard ✓
-[10] map-requirements — mapping_status=ok ✓
-[11] Mapping count — N/N requirements covered ✓
-[12] Evidence snippets — all met/partial have evidence ✓
-[13] Idempotent re-run ✓
-     MANUAL EYEBALL — Requirement Mapping Results
-[14] generate-questions 400 guard ✓
-[15] generate-questions — interview_questions_status=ok ✓
-[16] Question count — 5-8 ✓
-[17] target_requirement validity ✓
-[18] Idempotent re-run ✓
-     MANUAL EYEBALL — Interview Questions
+The test creates a job, uploads resumes, and exercises every API endpoint end-to-end, printing a pass/fail for each step.
 
-✅  All smoke tests passed (Milestones 1–4)!
-```
+---
 
-### Resetting the database
+## Test Resumes
 
-Run whenever model columns change between milestone iterations:
-```powershell
-python reset_db.py
-```
+The `test_resumes/` folder contains 10 synthetic resumes designed to exercise every evaluation scenario:
+
+| File | Role | Expected Result |
+|------|------|-----------------|
+| `1_Frontend_Perfect_Sarah_Jenkins.docx` | Lead Frontend | Strong Match |
+| `2_Frontend_Partial_Mark_Robinson.pdf` | Lead Frontend | Review Required (under-experienced) |
+| `3_Frontend_Fail_Backend_David_Chen.docx` | Lead Frontend | Significant Gaps (backend dev) |
+| `4_Frontend_Fail_Junior_Emma_Watson.pdf` | Lead Frontend | Significant Gaps (junior) |
+| `5_Frontend_Strong_No_Bonus_Michael_Chang.docx` | Lead Frontend | Strong Match (no TypeScript/WebSockets) |
+| `6_AI_Fullstack_Perfect_Elena_Rodriguez.pdf` | Senior AI Engineer | Strong Match |
+| `7_AI_Fullstack_Partial_FrontendHeavy_James_Wilson.docx` | Senior AI Engineer | Review Required (no LLM experience) |
+| `8_AI_Fullstack_Partial_DataSci_Lisa_Gupta.pdf` | Senior AI Engineer | Review Required (no frontend) |
+| `9_AI_Fullstack_Fail_Junior_Tom_Baker.docx` | Senior AI Engineer | Significant Gaps (junior) |
+| `10_AI_Fullstack_Strong_No_AI_Kevin_White.pdf` | Senior AI Engineer | Review Required (no LLM experience) |
 
 ---
 
 ## Key Design Decisions
 
-| Decision | Rationale |
-|---|---|
-| `create_all()` in lifespan, not Alembic | Spec requirement; fast enough at hackathon scale |
-| `expire_on_commit=False` | ORM objects stay readable after `commit()` without an extra DB round-trip |
-| `pool_pre_ping=True` | Neon suspends idle branches; prevents stale-connection errors |
-| `raw_text` omitted from upload/list responses | Full text only via `GET /candidates/{id}` — keeps list payloads small |
-| All AI steps always return 200 (never 500) | Frontend gets a per-resource error status (`mapping_status="error"`) rather than a generic crash |
-| `ValueError` for bad extension → 400, no row | Avoids orphan `Candidate` rows for fundamentally invalid input |
-| Evidence grounded in `raw_text`, not `profile_json` | M3 prompt explicitly forbids quoting the profile summary — evidence must be traceable to the actual resume |
-| `needs_validation=True` as default | False positives cost a recruiter seconds; false negatives cost recruiter trust |
-| `target_requirement` uses `COPY THIS:` label in prompt | Prevents LLM from copying the decorated `[SKILL] (REQUIRED) Python` string instead of the raw `"Python"` value |
-| `temperature=0.0` for extraction/mapping, `0.3` for questions | Deterministic for structured facts; slight warmth for natural question phrasing |
-
----
-
-## What's Next (Milestone 5)
-
-- Minimal frontend (React or plain HTML) to walk through the pipeline visually
-- Side-by-side candidate comparison view
-- Export interview pack as PDF
+| Decision | Why |
+|----------|-----|
+| `create_all()` on startup, no Alembic | Fast iteration — no migration overhead for a hackathon |
+| Evidence grounded in `raw_text`, not `profile_json` | Every verdict is traceable to the actual resume text |
+| All AI endpoints return `200` even on failure | Frontend gets a structured error status, not a generic 500 crash |
+| `needs_validation` defaults to `True` on ambiguity | False positives cost a recruiter seconds; false negatives cost recruiter trust |
+| Match score computed in frontend, not LLM | Transparent, auditable, and consistent — no hallucinated numbers |
+| `temperature=0.0` for extraction/mapping, `0.3` for questions | Deterministic for structured data; slight warmth for natural question phrasing |
+| `pool_pre_ping=True` on DB engine | Neon suspends idle branches — prevents stale-connection errors |

@@ -20,7 +20,7 @@ export default function LinkedInShareModal({ isOpen, onClose, selectedJob, selec
 3️⃣ AI Candidate Match Matrix & Skill Gap Scorecard (${matchScore}% match score evaluated for ${candidateName} applying for ${jobTitle})
 4️⃣ Custom Technical & Behavioral Interview Intelligence Generator with Live Interactive Simulator!
 
-💻 Built with: React 19 + Vite + Tailwind CSS | FastAPI + SQLAlchemy + LangChain + ChatGroq (Llama 3 70B)
+💻 Built with: React 19 + Vite + Tailwind CSS | FastAPI + SQLAlchemy + LangChain + ChatGroq (qwen 3.8 27b)
 
 Check out our live pipeline & hackathon demo!
 
@@ -36,7 +36,7 @@ Building a real-time candidate screening agent requires sub-second LLM inference
 • Skill Alignment Matrix: Calculates matched, missing, and bonus skill vectors for candidate evaluation.
 • Tailored Interview Intelligence: Generates technical deep-dives, STAR behavioral questions & live session evaluator scorecards.
 
-Stack: React • Vite • Tailwind • FastAPI • SQLAlchemy • Groq Llama 3 70B
+Stack: React • Vite • Tailwind • FastAPI • SQLAlchemy • Groq QWEN 3.8 27b
 
 #AIArchitecture #GenerativeAI #Groq #LangChain #FastAPI #ReactJS #CodeQuality #DeveloperCommunity`,
 
