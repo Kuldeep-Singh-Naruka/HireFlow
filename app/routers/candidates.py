@@ -23,6 +23,7 @@ from app.services.llm import (
     extract_candidate_profile,
     map_requirements_to_evidence,
     generate_interview_questions,
+    extract_job_requirements,
 )
 
 router = APIRouter(tags=["Candidates"])
@@ -122,13 +123,25 @@ def map_requirements_endpoint(
             detail="Candidate profile not yet extracted — call extract-profile first",
         )
 
-    # Step 4 — guard: job requirements must be extracted
+    # Step 4 — guard: ensure job requirements are extracted (auto-extract on-the-fly if missing)
     job = db.get(Job, candidate.job_id)
-    if job is None or job.requirements_status != REQUIREMENTS_STATUS_OK or not job.requirements_json:
-        raise HTTPException(
-            status_code=400,
-            detail="Job requirements not yet extracted — call extract-requirements first on the job",
-        )
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Job {candidate.job_id} not found")
+
+    if job.requirements_status != REQUIREMENTS_STATUS_OK or not job.requirements_json:
+        try:
+            extraction_result = extract_job_requirements(job.description_text)
+            job.requirements_json = extraction_result.model_dump()
+            job.requirements_status = REQUIREMENTS_STATUS_OK
+            job.requirements_error = None
+            db.add(job)
+            db.commit()
+            db.refresh(job)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Job requirements not yet extracted — call extract-requirements first on the job (auto-extract error: {str(exc)})",
+            )
 
     # Step 5 — call LLM mapping function
     try:
