@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     GROQ_API_KEY: str = ""
     GROQ_MODEL: str = "qwen/qwen3.8-27b"
+    AGENT_CONCURRENCY: int = 3
 
     model_config = SettingsConfigDict(
         env_file=".env",

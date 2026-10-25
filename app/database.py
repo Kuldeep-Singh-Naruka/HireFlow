@@ -8,12 +8,13 @@ from app.core.config import settings
 # ---------------------------------------------------------------------------
 # Engine — synchronous, suitable for FastAPI with a threadpool worker
 # ---------------------------------------------------------------------------
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,   # detect stale connections from Neon's idle timeout
-    pool_size=5,
-    max_overflow=10,
-)
+_engine_kwargs: dict = {"pool_pre_ping": True}  # detect stale connections from Neon's idle timeout
+if settings.DATABASE_URL.startswith("sqlite"):
+    _engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    _engine_kwargs.update(pool_size=5, max_overflow=10)
+
+engine = create_engine(settings.DATABASE_URL, **_engine_kwargs)
 
 # ---------------------------------------------------------------------------
 # Session factory

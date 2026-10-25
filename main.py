@@ -12,10 +12,9 @@ from app.database import Base, engine
 
 # Import models so their table metadata is registered on Base before
 # create_all() runs.  These imports must come BEFORE the lifespan handler.
-import app.models.job       # noqa: F401
-import app.models.candidate  # noqa: F401
+import app.models  # noqa: F401
 
-from app.routers import candidates, jobs
+from app.agent import runner
 
 
 # ---------------------------------------------------------------------------
@@ -29,6 +28,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # connections are stable.  checkfirst=True is the default; existing tables
     # are not dropped or altered, so this is safe across restarts.
     Base.metadata.create_all(bind=engine)
+    runner.mark_interrupted_runs()
     yield
     # Nothing to tear down — connection pool is managed by SQLAlchemy.
 
@@ -61,8 +61,10 @@ app.add_middleware(
 # Router registration
 # ---------------------------------------------------------------------------
 
-app.include_router(jobs.router)
-app.include_router(candidates.router)
+from app.routers import profiles, runs  # noqa: E402
+
+app.include_router(profiles.router)
+app.include_router(runs.router)
 
 
 # ---------------------------------------------------------------------------
