@@ -1,20 +1,16 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   Target, 
   Copy,
   Check
 } from 'lucide-react';
 
-export default function InterviewIntelligence({ selectedCandidate, selectedJob }) {
+export default function InterviewIntelligence({ questions }) {
   const [copiedIndex, setCopiedIndex] = useState(null);
   
-  const iqResult = selectedCandidate?.interview_questions_json;
-  
-  if (!iqResult || !iqResult.questions) {
+  if (!questions || questions.length === 0) {
     return <div className="text-sm text-slate-400">Interview questions not available.</div>;
   }
-
-  const questions = iqResult.questions;
   
   const handleCopyQuestion = (text, idx) => {
     navigator.clipboard.writeText(text);
@@ -30,7 +26,7 @@ export default function InterviewIntelligence({ selectedCandidate, selectedJob }
     <div className="glass-panel rounded-xl p-6 border border-[#1E2638] space-y-5">
       <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2 border-b border-[#1E2638] pb-3">
         <Target className="w-4 h-4 text-blue-400" />
-        Tailored Interview Questions for "{selectedJob?.title}" ({questions.length})
+        Tailored Interview Questions ({questions.length})
       </h3>
 
       <div className="space-y-6">

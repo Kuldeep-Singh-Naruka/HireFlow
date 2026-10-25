@@ -86,3 +86,8 @@
 .bg-radial-ambient {
   background-color: #090A0F;
 }
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -79,7 +79,7 @@ def get_llm_client() -> ChatGroq:
         groq_api_key=settings.GROQ_API_KEY,
         temperature=0.0,
         max_tokens=1000,
-        max_retries=5,
+        max_retries=0,
     )
 
 
@@ -316,6 +316,7 @@ def map_requirements_to_evidence(
         groq_api_key=settings.GROQ_API_KEY,
         temperature=0.0,
         max_tokens=4000,
+        max_retries=0,
     )
     structured_llm = llm_mapping.with_structured_output(MappingResult)
     chain = REQUIREMENT_MAPPING_PROMPT | structured_llm
@@ -510,6 +511,7 @@ def generate_interview_questions(
         groq_api_key=settings.GROQ_API_KEY,
         temperature=0.3,   # slight creativity for natural question phrasing
         max_tokens=3000,
+        max_retries=0,
     )
     structured_llm = llm_iq.with_structured_output(InterviewQuestionSet)
     chain = INTERVIEW_QUESTION_PROMPT | structured_llm
@@ -532,4 +534,131 @@ def generate_interview_questions(
             "Treating as a generation failure."
         )
 
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Requirement merge (form + JD)
+# ---------------------------------------------------------------------------
+
+REQUIREMENT_MERGE_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            "You are an expert HR data extractor. You receive a hiring form and a pasted "
+            "Job Description and must return one merged list of structured job requirements.\n\n"
+            "STRICT RULES:\n"
+            "1. Every form must-have appears as required and every nice-to-have as preferred "
+            "(form wins over JD on required-ness).\n"
+            "2. Add JD requirements not already covered.\n"
+            "3. Merge duplicates/synonyms into one item.\n"
+            "4. Extract ONLY requirements stated or clearly implied; do not invent any.\n"
+            "5. Categorize each as 'skill', 'experience', 'qualification', or 'other'.",
+        ),
+        (
+            "human",
+            "Form:\n---\n{form_text}\n---\n\nJob Description:\n---\n{jd_text}\n---",
+        ),
+    ]
+)
+
+
+def merge_requirements(form: dict, jd_text: str) -> JobRequirementsExtraction:
+    """Merge form fields and a JD into one requirement list (temperature 0).
+
+    Raises on any LLM / validation failure; the caller falls back to the form.
+    """
+    import json as _json
+
+    keys = ("title", "seniority", "min_years", "must_have", "nice_to_have", "location", "notes")
+    form_text = _json.dumps(
+        {k: form.get(k) for k in keys if form.get(k) not in (None, [], "")}, indent=2
+    )
+    llm = ChatGroq(
+        model_name=settings.GROQ_MODEL,
+        groq_api_key=settings.GROQ_API_KEY,
+        temperature=0.0,
+        max_tokens=2000,
+        max_retries=0,
+    )
+    chain = REQUIREMENT_MERGE_PROMPT | llm.with_structured_output(JobRequirementsExtraction)
+    result = chain.invoke({"form_text": form_text, "jd_text": jd_text})
+    if not isinstance(result, JobRequirementsExtraction):
+        result = JobRequirementsExtraction.model_validate(result)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Batch review
+# ---------------------------------------------------------------------------
+
+class ShortlistEntry(BaseModel):
+    candidate_id: int
+    rank: int
+    reason: str = Field(description="One sentence explaining this candidate's placement.")
+
+
+class ReviewSummary(BaseModel):
+    pool_strength: Literal["strong", "mixed", "weak"]
+    overview: str = Field(description="2-4 sentences on the candidate pool.")
+    top_picks: list[int] = Field(description="candidate_ids of the best candidates.")
+    common_gaps: list[str]
+    next_steps: list[str]
+
+
+class ReviewFlag(BaseModel):
+    candidate_id: int
+    reason: str
+
+
+class BatchReview(BaseModel):
+    shortlist: list[ShortlistEntry]
+    summary: ReviewSummary
+    flags: list[ReviewFlag]
+
+
+BATCH_REVIEW_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            "You are a senior recruiter reviewing a pool of screened candidates for one role. "
+            "You receive the role (title, seniority, requirements), the scored candidates "
+            "(id, name, score, badge, summary, per-requirement statuses, gaps) and a list of "
+            "unscored candidates.\n\n"
+            "RULES:\n"
+            "1. The shortlist must contain EVERY scored candidate exactly once, ranked from "
+            "best (rank 1) to worst, with a one-sentence reason each. Use candidate ids exactly "
+            "as given.\n"
+            "2. Respect the scores: do not rank a candidate above another whose score is more "
+            "than 5 points higher.\n"
+            "3. Fill the summary: pool_strength (strong, mixed or weak), a 2-4 sentence overview, "
+            "top_picks (candidate ids), common_gaps and concrete next_steps.\n"
+            "4. Flag for human attention: unscored/empty resumes, scores within +/-5 of the "
+            "badge boundary between review_required and significant_gaps, evidence that looks "
+            "keyword-stuffed or inconsistent, and unusual backgrounds worth a human look.\n"
+            "5. Use only the data provided; do not invent facts.\n"
+            "6. Keep it brief: every shortlist and flag reason must be one short sentence "
+            "(20 words or fewer).",
+        ),
+        ("human", "Review input:\n---\n{payload_json}\n---"),
+    ]
+)
+
+
+def review_candidates(payload: dict) -> BatchReview:
+    """Rank and summarise a candidate pool (temperature 0.2). Errors propagate."""
+    import json as _json
+
+    n_candidates = len(payload.get("candidates") or []) + len(payload.get("unscored") or [])
+    llm = ChatGroq(
+        model_name=settings.GROQ_MODEL,
+        groq_api_key=settings.GROQ_API_KEY,
+        temperature=0.2,
+        max_tokens=min(16000, 1500 + 120 * n_candidates),
+        max_retries=0,
+    )
+    chain = BATCH_REVIEW_PROMPT | llm.with_structured_output(BatchReview)
+    result = chain.invoke({"payload_json": _json.dumps(payload, indent=2)})
+    if not isinstance(result, BatchReview):
+        result = BatchReview.model_validate(result)
     return result
